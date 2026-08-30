@@ -1,0 +1,28 @@
+{{define "content"}}
+{{template "stats" .}}
+
+<div class="panel">
+	<div class="panel-header">
+		<div>
+			<h2>Últimas mensagens</h2>
+			<div class="hint">Mais recentes primeiro, de qualquer tópico</div>
+		</div>
+	</div>
+	<div class="table-wrap">
+		<table class="data">
+			<thead><tr><th>Tópico</th><th>Título</th><th>Prioridade</th></tr></thead>
+			<tbody>
+				{{range .Recent}}
+				<tr>
+					<td><span class="tag">{{.Topic}}</span></td>
+					<td class="cell-title">{{.Title}}</td>
+					<td><span class="chip chip-priority-mid">P{{.Priority}}</span></td>
+				</tr>
+				{{else}}
+				<tr><td colspan="3" class="empty-note">Nenhuma mensagem publicada ainda.</td></tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+</div>
+{{end}}

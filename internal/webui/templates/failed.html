@@ -1,0 +1,21 @@
+{{define "content"}}
+<div class="panel">
+	<div class="table-wrap">
+		<table class="data">
+			<thead><tr><th>Mensagem</th><th>Assinante</th><th>Tentativas</th><th>Erro</th></tr></thead>
+			<tbody>
+				{{range .Failed}}
+				<tr>
+					<td class="cell-title">{{.MessageTitle}}</td>
+					<td>{{.SubscriberLabel}}</td>
+					<td class="cell-mono">{{.Attempts}}</td>
+					<td><span class="error-msg">{{.LastError}}</span></td>
+				</tr>
+				{{else}}
+				<tr><td colspan="4" class="empty-note">Nenhuma entrega falhada — tudo certo por aqui.</td></tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+</div>
+{{end}}

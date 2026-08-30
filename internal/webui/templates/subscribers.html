@@ -1,0 +1,41 @@
+{{define "content"}}
+<div class="panel">
+	<div class="panel-header">
+		<div>
+			<h2>Assinantes cadastrados</h2>
+			<div class="hint">{{len .Subscribers}} assinante(s)</div>
+		</div>
+	</div>
+	<form class="inline-form" method="POST" action="/assinantes">
+		<div class="field">
+			<label>Rótulo</label>
+			<input type="text" name="label" placeholder="ex: Gabriel (pessoal)" required>
+		</div>
+		<div class="field">
+			<label>Chat ID (Telegram)</label>
+			<input type="text" name="chat_id" placeholder="ex: 5521987654321" required>
+		</div>
+		<div class="field field-submit">
+			<label>&nbsp;</label>
+			<button class="btn btn-primary" type="submit">Adicionar</button>
+		</div>
+	</form>
+	<div class="table-wrap">
+		<table class="data">
+			<thead><tr><th>Canal</th><th>Rótulo</th><th>Config</th><th>Ativo</th></tr></thead>
+			<tbody>
+				{{range .Subscribers}}
+				<tr>
+					<td>{{.Kind}}</td>
+					<td class="cell-title">{{.Label}}</td>
+					<td class="cell-mono">{{.MaskedConfig}}</td>
+					<td>{{if .Enabled}}<span class="chip chip-sent">ativo</span>{{else}}<span class="chip chip-pending">inativo</span>{{end}}</td>
+				</tr>
+				{{else}}
+				<tr><td colspan="4" class="empty-note">Nenhum assinante cadastrado ainda.</td></tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+</div>
+{{end}}

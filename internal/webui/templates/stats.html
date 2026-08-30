@@ -1,0 +1,20 @@
+{{define "stats"}}
+<div class="stat-row" id="stats" hx-get="/partials/stats" hx-trigger="every 10s" hx-swap="outerHTML">
+	<div class="stat-card">
+		<div class="label">Pendentes</div>
+		<div class="value warning">{{.Pending}}</div>
+	</div>
+	<div class="stat-card">
+		<div class="label">Enviadas hoje</div>
+		<div class="value success">{{.SentToday}}</div>
+	</div>
+	<div class="stat-card">
+		<div class="label">Falhadas</div>
+		<div class="value danger">{{.Failed}}</div>
+	</div>
+	<div class="stat-card">
+		<div class="label">Assinantes ativos</div>
+		<div class="value">{{.ActiveSubs}}</div>
+	</div>
+</div>
+{{end}}
