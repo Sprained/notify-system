@@ -172,3 +172,25 @@ implementação da feature correspondente.
 - [x] `GET /assinantes` lista com config mascarado (chat_id nunca aparece cru na tela)
 - [x] Sem assinante nenhum → renderiza vazio, sem erro
 - [x] `POST /assinantes` com formulário válido cria e redireciona (303) pro `GET /assinantes`
+
+---
+
+## Integração — ingestão via JSON (webhook do Dozzle)
+
+> **Status:** ✅ implementado, todos os testes passando (`internal/httpapi`).
+
+**Motivação:** Dozzle (v10+) manda alertas de log via webhook com headers estáticos
+(`X-Title`, `X-Priority` etc) + body JSON dinâmico — não dá pra mandar texto puro no
+body. `POST /:topico` só aceitava corpo cru até aqui.
+
+**Pronto quando:** um alerta do Dozzle (`Content-Type: application/json`,
+`{"message": "..."}`) vira `message` com o corpo certo, sem quebrar o contrato
+existente (`curl` com texto puro continua funcionando igual).
+
+- [x] `Content-Type: application/json` com `{"message": "..."}` → `message.Body` recebe o valor do campo `message`
+- [x] `Content-Type: application/json; charset=utf-8` (com parâmetro) → mesmo comportamento, charset não atrapalha a detecção
+- [x] JSON malformado com `Content-Type: application/json` → rejeita `400`, não grava `message`
+- [x] JSON válido sem o campo `message` → mesma regra de corpo vazio → rejeita `400`
+- [x] `{"message": ""}` → mesma regra de corpo vazio → rejeita `400`
+- [x] Sem `Content-Type: application/json` (mesmo se o corpo por acaso parecer JSON) → corpo tratado como texto puro, sem parsing — comportamento atual intocado
+- [x] Headers (`X-Title`, `X-Priority`, `X-Tags`, `X-Click`) continuam vindo do header normalmente, mesmo com body JSON

@@ -208,4 +208,4 @@ Existe um roadmap mais para servir como guia mas irei criar uma lista de task pa
 [x] Dockerfile de produção (build multi-stage, arm64)
 [x] docker-compose de produção (rede homelab_net externa, aponta pro Postgres global)
 [x] Build local + push manual pro GitHub Container Registry
-[ ] Subir no Portainer do Pi e validar ponta a ponta
+[x] Subir no Portainer do Pi e validar ponta a ponta

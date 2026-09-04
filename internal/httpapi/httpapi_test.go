@@ -238,6 +238,125 @@ func TestPublish_ResponseIncludesMessageID(t *testing.T) {
 	}
 }
 
+func TestPublish_JSONContentType_ExtractsMessageFieldAsBody(t *testing.T) {
+	messages := &fakeMessageRepo{}
+	router := newRouter(messages, &fakeRouteRepo{}, &fakeDeliveryRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/alerts", strings.NewReader(`{"message":"corpo via json"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Title", "Alerta")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	msg := messages.inserted[0]
+	if msg.Body != "corpo via json" || msg.Title != "Alerta" {
+		t.Errorf("unexpected message: %+v", msg)
+	}
+}
+
+func TestPublish_JSONContentTypeWithCharset_StillParsed(t *testing.T) {
+	messages := &fakeMessageRepo{}
+	router := newRouter(messages, &fakeRouteRepo{}, &fakeDeliveryRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/alerts", strings.NewReader(`{"message":"corpo"}`))
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if messages.inserted[0].Body != "corpo" {
+		t.Errorf("expected body %q, got %q", "corpo", messages.inserted[0].Body)
+	}
+}
+
+func TestPublish_JSONContentType_InvalidJSON_Rejects400(t *testing.T) {
+	messages := &fakeMessageRepo{}
+	router := newRouter(messages, &fakeRouteRepo{}, &fakeDeliveryRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/alerts", strings.NewReader(`not json`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+	if len(messages.inserted) != 0 {
+		t.Errorf("expected no message inserted, got %d", len(messages.inserted))
+	}
+}
+
+func TestPublish_JSONContentType_MissingMessageField_Rejects400(t *testing.T) {
+	messages := &fakeMessageRepo{}
+	router := newRouter(messages, &fakeRouteRepo{}, &fakeDeliveryRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/alerts", strings.NewReader(`{"foo":"bar"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestPublish_JSONContentType_EmptyMessageField_Rejects400(t *testing.T) {
+	messages := &fakeMessageRepo{}
+	router := newRouter(messages, &fakeRouteRepo{}, &fakeDeliveryRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/alerts", strings.NewReader(`{"message":""}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestPublish_NonJSONContentType_RawBodyUnaffected(t *testing.T) {
+	messages := &fakeMessageRepo{}
+	router := newRouter(messages, &fakeRouteRepo{}, &fakeDeliveryRepo{})
+
+	raw := `{"message":"não deveria ser parseado"}`
+	req := httptest.NewRequest(http.MethodPost, "/alerts", strings.NewReader(raw))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if messages.inserted[0].Body != raw {
+		t.Errorf("expected raw body untouched, got %q", messages.inserted[0].Body)
+	}
+}
+
+func TestPublish_JSONContentType_HeadersStillApplyOnTopOfJSONBody(t *testing.T) {
+	messages := &fakeMessageRepo{}
+	router := newRouter(messages, &fakeRouteRepo{}, &fakeDeliveryRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/alerts", strings.NewReader(`{"message":"corpo"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Priority", "5")
+	req.Header.Set("X-Tags", "dozzle,producao")
+	req.Header.Set("X-Click", "https://dozzle.example.com")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	msg := messages.inserted[0]
+	if msg.Priority != 5 || msg.ClickURL != "https://dozzle.example.com" {
+		t.Errorf("unexpected message: %+v", msg)
+	}
+	if len(msg.Tags) != 2 || msg.Tags[0] != "dozzle" || msg.Tags[1] != "producao" {
+		t.Errorf("expected tags [dozzle producao], got %v", msg.Tags)
+	}
+}
+
 func TestPublish_WrongMethodReturns405(t *testing.T) {
 	router := newRouter(&fakeMessageRepo{}, &fakeRouteRepo{}, &fakeDeliveryRepo{})
 

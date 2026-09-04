@@ -80,7 +80,7 @@ Ver [TESTS.md](TESTS.md) pro checklist detalhado item a item — resumo:
 | 3 | Worker e interface de canal | ✅ Green |
 | 4 | Integração com Telegram | ✅ Green — validado com bot real |
 | 5 | Dashboard web (5 telas) | ✅ Green — validado no navegador |
-| Deploy | Docker prod + Portainer | 🟡 imagem buildada e publicada; falta subir no Pi |
+| Deploy | Docker prod + Portainer | ✅ Green — subiu no Portainer do Pi, validado ponta a ponta |
 
 ## Dashboard web — as 5 telas
 
@@ -168,7 +168,5 @@ Requer Docker Desktop rodando pra `go test ./internal/postgres/... ./internal/ht
 
 ## Próximo passo
 
-Subir a stack no Portainer do Pi e validar ponta a ponta rodando lá (não só local) —
-única task aberta em "Deploy" no `NOTIFY.md`. Depois disso, o roadmap original inteiro
-(Fases 1–5 + deploy) está fechado; resta só a Fase 6 (App Android), deixada pra depois
-por decisão do Gabs.
+Roadmap original (Fases 1–5 + deploy) fechado. Resta só a Fase 6 (App Android),
+deixada pra depois por decisão do Gabs.

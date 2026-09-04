@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
@@ -33,10 +34,22 @@ func RegisterRoutes(mux *http.ServeMux, h *Handler) {
 func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 	topic := r.PathValue("topic")
 
-	body, err := io.ReadAll(r.Body)
+	rawBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "failed to read body", http.StatusBadRequest)
 		return
+	}
+
+	body := string(rawBody)
+	if isJSONContentType(r.Header.Get("Content-Type")) {
+		var payload struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(rawBody, &payload); err != nil {
+			http.Error(w, "invalid json body", http.StatusBadRequest)
+			return
+		}
+		body = payload.Message
 	}
 
 	priority := defaultPriority
@@ -54,7 +67,7 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 		tags = strings.Split(raw, ",")
 	}
 
-	msg, err := message.New(topic, r.Header.Get("X-Title"), string(body), priority, tags, r.Header.Get("X-Click"))
+	msg, err := message.New(topic, r.Header.Get("X-Title"), body, priority, tags, r.Header.Get("X-Click"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -82,4 +95,12 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"id": msg.ID})
+}
+
+func isJSONContentType(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
+	return mediaType == "application/json"
 }
