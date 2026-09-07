@@ -51,6 +51,7 @@ func main() {
 
 	store := postgres.NewStore(db)
 	subscribers := postgres.NewSubscriberStore(db)
+	topics := postgres.NewTopicStore(db)
 
 	handler := &httpapi.Handler{
 		Messages:   store,
@@ -64,6 +65,7 @@ func main() {
 		Deliveries:  store,
 		Subscribers: subscribers,
 		Routes:      store,
+		Topics:      topics,
 	})
 
 	notifiers := map[string]notifier.Notifier{

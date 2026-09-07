@@ -102,6 +102,14 @@ func (s *Store) List(ctx context.Context) ([]route.Route, error) {
 
 func (s *Store) Create(ctx context.Context, topic string, subscriberID int64, minPriority int) error {
 	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO topic (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
+		topic,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO route (topic, subscriber_id, min_priority) VALUES ($1, $2, $3)`,
 		topic, subscriberID, minPriority,
 	)

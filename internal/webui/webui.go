@@ -12,6 +12,7 @@ import (
 	"github.com/Sprained/notify-system/internal/message"
 	"github.com/Sprained/notify-system/internal/route"
 	"github.com/Sprained/notify-system/internal/subscriber"
+	"github.com/Sprained/notify-system/internal/topic"
 )
 
 //go:embed templates/*.html
@@ -25,12 +26,13 @@ func parsePage(page string) *template.Template {
 }
 
 var (
-	overviewTmpl = parsePage("templates/overview.html")
-	messagesTmpl = parsePage("templates/messages.html")
-	failedTmpl   = parsePage("templates/failed.html")
-	routesTmpl       = parsePage("templates/routes.html")
-	subscribersTmpl  = parsePage("templates/subscribers.html")
-	statsTmpl    = template.Must(template.ParseFS(templatesFS, "templates/stats.html"))
+	overviewTmpl    = parsePage("templates/overview.html")
+	messagesTmpl    = parsePage("templates/messages.html")
+	failedTmpl      = parsePage("templates/failed.html")
+	routesTmpl      = parsePage("templates/routes.html")
+	subscribersTmpl = parsePage("templates/subscribers.html")
+	topicsTmpl      = parsePage("templates/topics.html")
+	statsTmpl       = template.Must(template.ParseFS(templatesFS, "templates/stats.html"))
 )
 
 type Handler struct {
@@ -38,6 +40,7 @@ type Handler struct {
 	Deliveries  delivery.Repository
 	Subscribers subscriber.Repository
 	Routes      route.Repository
+	Topics      topic.Repository
 }
 
 type shellData struct {
@@ -86,6 +89,11 @@ type subscribersData struct {
 	Subscribers []subscriberView
 }
 
+type topicsData struct {
+	shellData
+	Topics []topic.Topic
+}
+
 func maskConfig(sub subscriber.Subscriber) string {
 	chatID, ok := sub.Config["chat_id"]
 	if !ok || len(chatID) < 4 {
@@ -108,6 +116,8 @@ func RegisterRoutes(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("POST /rotas", h.handleCreateRoute)
 	mux.HandleFunc("GET /assinantes", h.handleSubscribers)
 	mux.HandleFunc("POST /assinantes", h.handleCreateSubscriber)
+	mux.HandleFunc("GET /topicos", h.handleTopics)
+	mux.HandleFunc("POST /topicos/apagar", h.handleDeleteTopic)
 	mux.HandleFunc("GET /partials/stats", h.handleStatsPartial)
 	mux.Handle("GET /static/", http.FileServerFS(staticFS))
 }
@@ -285,6 +295,39 @@ func (h *Handler) handleCreateSubscriber(w http.ResponseWriter, r *http.Request)
 	}
 
 	http.Redirect(w, r, "/assinantes", http.StatusSeeOther)
+}
+
+func (h *Handler) handleTopics(w http.ResponseWriter, r *http.Request) {
+	topics, err := h.Topics.List(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := topicsData{
+		shellData: shellData{ActiveNav: "topics", PageTitle: "Tópicos"},
+		Topics:    topics,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := topicsTmpl.ExecuteTemplate(w, "layout", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (h *Handler) handleDeleteTopic(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "formulário inválido", http.StatusBadRequest)
+		return
+	}
+	name := r.FormValue("name")
+
+	if err := h.Topics.Delete(r.Context(), name); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/topicos", http.StatusSeeOther)
 }
 
 func (h *Handler) handleStatsPartial(w http.ResponseWriter, r *http.Request) {

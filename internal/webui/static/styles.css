@@ -256,4 +256,6 @@ form.inline-form {
   font-family: inherit; font-size: var(--text-sm); padding: 7px 9px;
   border-radius: 6px; border: 1px solid var(--border-strong);
   background: var(--surface); color: var(--ink);
+  width: 100%; box-sizing: border-box;
+  height: 36px;
 }

@@ -70,6 +70,46 @@ func TestStore_CreateRoute_PersistsAndListable(t *testing.T) {
 	}
 }
 
+func TestStore_CreateRoute_NewTopic_CreatesTopicImplicitly(t *testing.T) {
+	db := migratedDB(t)
+	subID := insertSubscriber(t, db, "telegram")
+
+	store := postgres.NewStore(db)
+	if err := store.Create(context.Background(), "topico-novo", subID, 3); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	var exists bool
+	if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM topic WHERE name = $1)`, "topico-novo").Scan(&exists); err != nil {
+		t.Fatalf("query topic: %v", err)
+	}
+	if !exists {
+		t.Error("expected topic to be created implicitly")
+	}
+}
+
+func TestStore_CreateRoute_TwoRoutesSameNewTopic_BothSucceed(t *testing.T) {
+	db := migratedDB(t)
+	sub1 := insertSubscriber(t, db, "telegram")
+	sub2 := insertSubscriber(t, db, "telegram")
+
+	store := postgres.NewStore(db)
+	if err := store.Create(context.Background(), "topico-compartilhado", sub1, 3); err != nil {
+		t.Fatalf("Create (sub1): %v", err)
+	}
+	if err := store.Create(context.Background(), "topico-compartilhado", sub2, 4); err != nil {
+		t.Fatalf("Create (sub2): %v", err)
+	}
+
+	got, err := store.List(context.Background())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 routes, got %d", len(got))
+	}
+}
+
 func TestSubscriberStore_List_ReturnsAllSubscribers(t *testing.T) {
 	db := migratedDB(t)
 	insertSubscriber(t, db, "telegram")

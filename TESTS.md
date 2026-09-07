@@ -173,6 +173,29 @@ implementação da feature correspondente.
 - [x] Sem assinante nenhum → renderiza vazio, sem erro
 - [x] `POST /assinantes` com formulário válido cria e redireciona (303) pro `GET /assinantes`
 
+### Tópicos
+
+> **Status:** ✅ implementado, todos os testes passando (`internal/postgres`,
+> `internal/webui`).
+
+**Motivação:** consequência direta do fix da FK `route_topic_fkey` — agora que rota
+cria tópico implicitamente, precisa de um jeito de ver/limpar tópicos "órfãos"
+(sem rota, sem mensagem, ou os dois).
+
+#### Repository (Postgres real, via testcontainers)
+- [x] `List` traz contagem de mensagens e de rotas por tópico (`LEFT JOIN` + `COUNT DISTINCT`)
+- [x] `List` retorna vazio sem erro quando não há tópico
+- [x] `Delete` remove um tópico sem mensagem e sem rota
+- [x] `Delete` falha (FK) quando o tópico tem mensagem — sem tradução especial do erro, a constraint já existente barra sozinha
+- [x] `Delete` falha (FK) quando o tópico tem rota
+
+#### Handler (`webui`, com fakes)
+- [x] `GET /topicos` lista nome + contagem de mensagens/rotas de cada tópico
+- [x] Sem tópico nenhum → renderiza vazio, sem erro
+- [x] Badge "sem rota" aparece quando `RouteCount == 0`; badge "sem mensagem" quando `MessageCount == 0` — independentes entre si
+- [x] Botão/formulário de apagar só aparece na linha do tópico com `MessageCount == 0 && RouteCount == 0`
+- [x] `POST /topicos/apagar` com formulário válido apaga e redireciona (303) pro `GET /topicos`
+
 ---
 
 ## Integração — ingestão via JSON (webhook do Dozzle)
@@ -194,3 +217,23 @@ existente (`curl` com texto puro continua funcionando igual).
 - [x] `{"message": ""}` → mesma regra de corpo vazio → rejeita `400`
 - [x] Sem `Content-Type: application/json` (mesmo se o corpo por acaso parecer JSON) → corpo tratado como texto puro, sem parsing — comportamento atual intocado
 - [x] Headers (`X-Title`, `X-Priority`, `X-Tags`, `X-Click`) continuam vindo do header normalmente, mesmo com body JSON
+
+---
+
+## Fix — criar `route` pra tópico inexistente (FK `route_topic_fkey`)
+
+> **Status:** ✅ implementado, todos os testes passando (`internal/postgres`).
+
+**Motivação:** `message.Insert` já cria o `topic` implicitamente (`ON CONFLICT DO
+NOTHING`) antes de gravar a mensagem, mas `route.Store.Create` não — cadastrar uma
+rota pela dashboard pra um tópico que nunca recebeu `publish` quebra com
+`route_topic_fkey` (SQLSTATE 23503). Vira pré-requisito manual chato (mandar um
+`curl` de teste só pra criar o tópico antes de poder criar a rota).
+
+**Pronto quando:** criar uma rota pela dashboard pra um tópico novo funciona direto,
+sem precisar de nenhuma mensagem publicada antes — mesma regra implícita de tópico já
+aplicada nos dois pontos de entrada.
+
+- [x] `Store.Create` (rota) pra um tópico que ainda não existe cria o `topic` implicitamente e persiste a rota sem erro
+- [x] Duas rotas criadas pro mesmo tópico novo (assinantes diferentes) funcionam as duas, sem conflito de criar o `topic` duas vezes
+- [x] Regressão: `Store.Create` pra um tópico que já existe continua funcionando igual (coberto por `TestStore_CreateRoute_PersistsAndListable`, já existente)

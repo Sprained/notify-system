@@ -1,0 +1,38 @@
+{{define "content"}}
+<div class="panel">
+	<div class="panel-header">
+		<div>
+			<h2>Tópicos existentes</h2>
+			<div class="hint">{{len .Topics}} tópico(s)</div>
+		</div>
+	</div>
+	<div class="table-wrap">
+		<table class="data">
+			<thead><tr><th>Tópico</th><th>Mensagens</th><th>Rotas</th><th></th></tr></thead>
+			<tbody>
+				{{range .Topics}}
+				<tr>
+					<td>
+						<span class="tag">{{.Name}}</span>
+						{{if eq .RouteCount 0}}<span class="chip chip-pending">sem rota</span>{{end}}
+						{{if eq .MessageCount 0}}<span class="chip chip-pending">sem mensagem</span>{{end}}
+					</td>
+					<td class="cell-mono">{{.MessageCount}}</td>
+					<td class="cell-mono">{{.RouteCount}}</td>
+					<td>
+						{{if and (eq .MessageCount 0) (eq .RouteCount 0)}}
+						<form method="POST" action="/topicos/apagar">
+							<input type="hidden" name="name" value="{{.Name}}">
+							<button class="btn btn-sm" type="submit">Apagar</button>
+						</form>
+						{{end}}
+					</td>
+				</tr>
+				{{else}}
+				<tr><td colspan="4" class="empty-note">Nenhum tópico ainda.</td></tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+</div>
+{{end}}

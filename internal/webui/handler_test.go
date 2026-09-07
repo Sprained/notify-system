@@ -11,6 +11,7 @@ import (
 	"github.com/Sprained/notify-system/internal/message"
 	"github.com/Sprained/notify-system/internal/route"
 	"github.com/Sprained/notify-system/internal/subscriber"
+	"github.com/Sprained/notify-system/internal/topic"
 	"github.com/Sprained/notify-system/internal/webui"
 )
 
@@ -95,6 +96,143 @@ func (f *fakeRouteRepo) Create(ctx context.Context, topic string, subscriberID i
 		MinPriority  int
 	}{topic, subscriberID, minPriority})
 	return nil
+}
+
+type fakeTopicRepo struct {
+	topics  []topic.Topic
+	deleted []string
+}
+
+func (f *fakeTopicRepo) List(ctx context.Context) ([]topic.Topic, error) {
+	return f.topics, nil
+}
+func (f *fakeTopicRepo) Delete(ctx context.Context, name string) error {
+	f.deleted = append(f.deleted, name)
+	return nil
+}
+
+func TestTopics_ListsWithCounts(t *testing.T) {
+	h := &webui.Handler{
+		Messages:    &fakeMessageRepo{},
+		Deliveries:  &fakeDeliveryRepo{},
+		Subscribers: &fakeSubscriberRepo{},
+		Routes:      &fakeRouteRepo{},
+		Topics: &fakeTopicRepo{topics: []topic.Topic{
+			{Name: "alertas", MessageCount: 5, RouteCount: 2},
+		}},
+	}
+	router := webui.NewRouter(h)
+
+	req := httptest.NewRequest("GET", "/topicos", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("esperava 200, veio %d", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"alertas", "5", "2"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("esperava %q no corpo", want)
+		}
+	}
+}
+
+func TestTopics_EmptyState_RendersWithoutError(t *testing.T) {
+	h := &webui.Handler{
+		Messages:    &fakeMessageRepo{},
+		Deliveries:  &fakeDeliveryRepo{},
+		Subscribers: &fakeSubscriberRepo{},
+		Routes:      &fakeRouteRepo{},
+		Topics:      &fakeTopicRepo{},
+	}
+	router := webui.NewRouter(h)
+
+	req := httptest.NewRequest("GET", "/topicos", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("esperava 200 mesmo sem tópico nenhum, veio %d", rec.Code)
+	}
+}
+
+func TestTopics_ShowsOrphanBadges(t *testing.T) {
+	h := &webui.Handler{
+		Messages:    &fakeMessageRepo{},
+		Deliveries:  &fakeDeliveryRepo{},
+		Subscribers: &fakeSubscriberRepo{},
+		Routes:      &fakeRouteRepo{},
+		Topics: &fakeTopicRepo{topics: []topic.Topic{
+			{Name: "sem-rota-nenhuma", MessageCount: 3, RouteCount: 0},
+			{Name: "nunca-usado", MessageCount: 0, RouteCount: 0},
+			{Name: "saudavel", MessageCount: 3, RouteCount: 1},
+		}},
+	}
+	router := webui.NewRouter(h)
+
+	req := httptest.NewRequest("GET", "/topicos", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "sem rota") {
+		t.Errorf("esperava badge \"sem rota\" no corpo, corpo: %s", body)
+	}
+	if !strings.Contains(body, "sem mensagem") {
+		t.Errorf("esperava badge \"sem mensagem\" no corpo, corpo: %s", body)
+	}
+}
+
+func TestTopics_DeleteButton_OnlyShownWhenSafeToDelete(t *testing.T) {
+	h := &webui.Handler{
+		Messages:    &fakeMessageRepo{},
+		Deliveries:  &fakeDeliveryRepo{},
+		Subscribers: &fakeSubscriberRepo{},
+		Routes:      &fakeRouteRepo{},
+		Topics: &fakeTopicRepo{topics: []topic.Topic{
+			{Name: "com-mensagem", MessageCount: 1, RouteCount: 0},
+			{Name: "vazio-de-verdade", MessageCount: 0, RouteCount: 0},
+		}},
+	}
+	router := webui.NewRouter(h)
+
+	req := httptest.NewRequest("GET", "/topicos", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	deleteFormsCount := strings.Count(body, "/topicos/apagar")
+	if deleteFormsCount != 1 {
+		t.Errorf("esperava 1 formulário de apagar (só pro tópico vazio), encontrado %d", deleteFormsCount)
+	}
+}
+
+func TestDeleteTopic_ValidForm_DeletesAndRedirects(t *testing.T) {
+	topics := &fakeTopicRepo{}
+	h := &webui.Handler{
+		Messages:    &fakeMessageRepo{},
+		Deliveries:  &fakeDeliveryRepo{},
+		Subscribers: &fakeSubscriberRepo{},
+		Routes:      &fakeRouteRepo{},
+		Topics:      topics,
+	}
+	router := webui.NewRouter(h)
+
+	req := httptest.NewRequest("POST", "/topicos/apagar", strings.NewReader("name=descartavel"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("esperava 303, veio %d", rec.Code)
+	}
+	if rec.Header().Get("Location") != "/topicos" {
+		t.Errorf("esperava redirect pra /topicos, veio %q", rec.Header().Get("Location"))
+	}
+	if len(topics.deleted) != 1 || topics.deleted[0] != "descartavel" {
+		t.Errorf("esperava \"descartavel\" apagado, veio %v", topics.deleted)
+	}
 }
 
 func TestSubscribersScreen_ListsWithMaskedConfig(t *testing.T) {

@@ -6,6 +6,10 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       HTTP_ADDR: ":8080"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     ports:
       - "8080:8080"
     networks:
